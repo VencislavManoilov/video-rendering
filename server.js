@@ -5,9 +5,9 @@ const width = 1080;
 const height = 1920;
 const canvas = createCanvas(width, height);
 const context = canvas.getContext("2d");
-const updates = 100;
-const updatesPerFrame = 1;
-const fps = 24;
+const updates = 60 * 60;
+const updatesPerFrame = 2;
+const fps = 60;
 
 const ffmpeg = spawn("ffmpeg", [
   "-y", // overwrites output.mp4 if exists
@@ -31,9 +31,11 @@ ffmpeg.on("close", (code) => {
 });
 
 class Ball {
-  constructor(x, y) {
+  constructor(x, y, velocityX, velocityY) {
     this.x = x || 540;
     this.y = y || 910;
+    this.velocityX = velocityX || 0;
+    this.velocityY = velocityY || 0;
     this.hsl = random(360);
   }
 
@@ -47,15 +49,45 @@ class Ball {
 }
 
 let balls = [];
-balls.push(new Ball(540, 910));
+balls.push(new Ball(540, 910, 1, -1));
 
 function random(max) {
   return Math.floor(Math.random() * max);
 }
 
+function distance(x1, y1, x2, y2) {
+  const a = x1 - x2;
+  const b = y1 - y2;
+  return Math.sqrt(a*a + b*b);
+}
+
+function angleBetweenTwoPoints(x1, y1, x2, y2) {
+  return Math.atan2(y2 - y1, x2 - x1);
+}
+
 function update() {
   balls.forEach((ball) => {
-    ball.x++;
+    ball.x += ball.velocityX;
+    ball.y += ball.velocityY;
+
+    ball.velocityY += 0.1;
+
+    if(distance(540, 910, ball.x, ball.y) > 523) {
+      const angle = angleBetweenTwoPoints(540, 910, ball.x, ball.y);
+      ball.x = 540 + Math.cos(angle) * 523;
+      ball.y = 910 + Math.sin(angle) * 523;
+
+      const normalVectorX = (ball.x - 540) / 523;
+      const normalVectorY = (ball.y - 910) / 523;
+
+      const velocityVectorX = ball.velocityX;
+      const velocityVectorY = ball.velocityY;
+
+      const dot = velocityVectorX * normalVectorX + velocityVectorY * normalVectorY;
+
+      ball.velocityX = velocityVectorX - 2 * dot * normalVectorX;
+      ball.velocityY = velocityVectorY - 2 * dot * normalVectorY;
+    }
   })
 }
 
@@ -65,7 +97,7 @@ function draw() {
   context.fillRect(0, 0, width, height);
 
   context.strokeStyle = "white";
-  context.lineWidth = 2;
+  context.lineWidth = 1;
   context.beginPath();
   context.arc(540, 910, 530, 0, 2 * Math.PI);
   context.stroke();
