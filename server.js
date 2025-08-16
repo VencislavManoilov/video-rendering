@@ -5,8 +5,8 @@ const width = 1080;
 const height = 1920;
 const canvas = createCanvas(width, height);
 const context = canvas.getContext("2d");
-const updates = 60 * 60;
-const updatesPerFrame = 2;
+const updates = 60 * 180;
+const updatesPerFrame = 3;
 const fps = 60;
 
 const ffmpeg = spawn("ffmpeg", [
@@ -116,7 +116,9 @@ function draw() {
 
     if(i%updatesPerFrame === 0) {
       const buffer = draw();
-      ffmpeg.stdin.write(buffer);
+      if(!ffmpeg.stdin.write(buffer)) {
+        await new Promise(resolve => ffmpeg.stdin.once('drain', resolve));
+      }
     }
   }
 
