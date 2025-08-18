@@ -5,8 +5,8 @@ const width = 1080;
 const height = 1920;
 const canvas = createCanvas(width, height);
 const context = canvas.getContext("2d");
-const updates = 60 * 180;
-const updatesPerFrame = 3;
+const updates = 60 * 30;
+const updatesPerFrame = 1;
 const fps = 60;
 
 const ffmpeg = spawn("ffmpeg", [
@@ -37,6 +37,7 @@ class Ball {
     this.velocityX = velocityX || 0;
     this.velocityY = velocityY || 0;
     this.hsl = random(360);
+    this.active = true;
   }
 
   draw(ctx) {
@@ -49,7 +50,13 @@ class Ball {
 }
 
 let balls = [];
-balls.push(new Ball(540, 910, 1, -1));
+for(let i = 0; i < 100; i++) {
+  const x = random(400) + 200;
+  const y = random(200) + 200;
+  const velocityX = (Math.random() - 0.5) * 2;
+  const velocityY = (Math.random() - 0.5) * 2;
+  balls.push(new Ball(x, y, velocityX, velocityY));
+}
 
 function random(max) {
   return Math.floor(Math.random() * max);
@@ -66,14 +73,32 @@ function angleBetweenTwoPoints(x1, y1, x2, y2) {
 }
 
 function update() {
-  balls.forEach((ball) => {
+  balls.forEach((ball, i) => {
     ball.x += ball.velocityX;
     ball.y += ball.velocityY;
 
     ball.velocityY += 0.1;
 
-    if(distance(540, 910, ball.x, ball.y) > 523) {
+    if(ball.active && distance(540, 910, ball.x, ball.y) > 523) {
       const angle = angleBetweenTwoPoints(540, 910, ball.x, ball.y);
+      // Check if ball is in the hole
+      const normalizedAngle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const holeStart = ((holeAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const holeEnd = ((holeAngle + Math.PI * (360 - holeRadius) / 180) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+
+      let inHole = false;
+      if (holeStart < holeEnd) {
+        inHole = normalizedAngle >= holeStart && normalizedAngle <= holeEnd;
+      } else {
+        inHole = normalizedAngle >= holeStart || normalizedAngle <= holeEnd;
+      }
+
+      if(!inHole) {
+        ball.active = false;
+        balls.push(new Ball(540, 910, (random(10000) - 5000) / 1000, (random(10000) - 5000) / 1000));
+        balls.push(new Ball(540, 910, (random(10000) - 5000) / 1000, (random(10000) - 5000) / 1000));
+        return;
+      }
       ball.x = 540 + Math.cos(angle) * 523;
       ball.y = 910 + Math.sin(angle) * 523;
 
@@ -88,8 +113,17 @@ function update() {
       ball.velocityX = velocityVectorX - 2 * dot * normalVectorX;
       ball.velocityY = velocityVectorY - 2 * dot * normalVectorY;
     }
-  })
+
+    if(!ball.active && ball.y > 1920 + 30) {
+      balls.splice(i, 1);
+    }
+  });
+
+  holeAngle += 0.01;
 }
+
+let holeRadius = 36;
+let holeAngle = 0;
 
 function draw() {
   // Clear
@@ -99,7 +133,7 @@ function draw() {
   context.strokeStyle = "white";
   context.lineWidth = 1;
   context.beginPath();
-  context.arc(540, 910, 530, 0, 2 * Math.PI);
+  context.arc(540, 910, 530, holeAngle, holeAngle + Math.PI * (360 - holeRadius) / 180);
   context.stroke();
 
   balls.forEach((ball) => {
